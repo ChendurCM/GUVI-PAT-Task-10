@@ -1,0 +1,229 @@
+#Task1
+
+cd path/to/your/project
+.\venv\Scripts\activate
+pip freeze > requirements.txt
+
+
+#Task2
+
+.\venv\Scripts\activate
+python -m venv venv
+.\venv\Scripts\activate
+pip install "Flask<2.0"
+pip show Flask
+
+
+#Task3
+music-player/
+|-- index.html
+|-- styles.css
+|-- tsconfig.json
+|-- src/
+|   |-- main.ts
+|   |-- models/
+|   |   |-- audio.ts
+|   |   |-- playlist.ts
+|   |-- components/
+|   |   |-- audioPlayer.ts
+|   |   |-- playlistManager.ts
+|-- dist/
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Player App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <!-- Content will be injected by TypeScript -->
+    </div>
+    <script src="dist/main.js"></script>
+</body>
+</html>
+
+{
+    "compilerOptions": {
+        "target": "es5",
+        "module": "commonjs",
+        "strict": true,
+        "esModuleInterop": true,
+        "outDir": "./dist"
+    },
+    "include": ["src/**/*"]
+}
+
+export class Audio {
+    constructor(
+        public id: number,
+        public name: string,
+        public url: string,
+        public genre: string,
+        public rating: number[] = []
+    ) {}
+
+    getAverageRating(): number {
+        const total = this.rating.reduce((acc, rate) => acc + rate, 0);
+        return total / this.rating.length || 0;
+    }
+
+    addRating(rate: number) {
+        this.rating.push(rate);
+    }
+}
+
+import { Audio } from './audio';
+
+export class Playlist {
+    private audios: Audio[] = [];
+
+    constructor(
+        public id: number,
+        public name: string,
+        public genre: string,
+        public rating: number[] = []
+    ) {}
+
+    addAudio(audio: Audio) {
+        this.audios.push(audio);
+    }
+
+    getAudios(): Audio[] {
+        return this.audios;
+    }
+
+    searchAudioByName(name: string): Audio[] {
+        return this.audios.filter(audio => audio.name.includes(name));
+    }
+
+    addRating(rate: number) {
+        this.rating.push(rate);
+    }
+
+    getAverageRating(): number {
+        const total = this.rating.reduce((acc, rate) => acc + rate, 0);
+        return total / this.rating.length || 0;
+    }
+}
+
+import { Audio } from '../models/audio';
+
+export class AudioPlayer {
+    private currentAudio: HTMLAudioElement | null = null;
+
+    createPlayer(audio: Audio): HTMLDivElement {
+        const playerDiv = document.createElement('div');
+        playerDiv.className = 'audio-player';
+
+        const audioElement = document.createElement('audio');
+        audioElement.src = audio.url;
+        audioElement.controls = true;
+
+        playerDiv.appendChild(audioElement);
+        this.currentAudio = audioElement;
+
+        return playerDiv;
+    }
+}
+
+import { Playlist } from '../models/playlist';
+import { Audio } from '../models/audio';
+
+export class PlaylistManager {
+    private playlists: Playlist[] = [];
+
+    createPlaylist(name: string, genre: string): Playlist {
+        const id = this.playlists.length + 1;
+        const newPlaylist = new Playlist(id, name, genre);
+        this.playlists.push(newPlaylist);
+        return newPlaylist;
+    }
+
+    addAudioToPlaylist(audio: Audio, playlistId: number) {
+        const playlist = this.playlists.find(pl => pl.id === playlistId);
+        if (playlist) {
+            playlist.addAudio(audio);
+        }
+    }
+
+    searchPlaylistByName(name: string): Playlist[] {
+        return this.playlists.filter(pl => pl.name.includes(name));
+    }
+
+    getPlaylists(): Playlist[] {
+        return this.playlists;
+    }
+}
+
+import { PlaylistManager } from './components/playlistManager';
+import { Audio } from './models/audio';
+import { AudioPlayer } from './components/audioPlayer';
+
+const app = document.getElementById('app');
+
+if (app) {
+    const playlistManager = new PlaylistManager();
+    const audioPlayer = new AudioPlayer();
+
+    // UI Elements
+    const playlistForm = document.createElement('form');
+    playlistForm.innerHTML = `
+        <div class="form-group">
+            <label for="playlistName">Playlist Name</label>
+            <input type="text" class="form-control" id="playlistName" placeholder="Enter playlist name">
+        </div>
+        <div class="form-group">
+            <label for="playlistGenre">Genre</label>
+            <input type="text" class="form-control" id="playlistGenre" placeholder="Enter genre">
+        </div>
+        <button type="submit" class="btn btn-primary">Create Playlist</button>
+    `;
+    app.appendChild(playlistForm);
+
+    playlistForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const name = (document.getElementById('playlistName') as HTMLInputElement).value;
+        const genre = (document.getElementById('playlistGenre') as HTMLInputElement).value;
+        playlistManager.createPlaylist(name, genre);
+        displayPlaylists();
+    });
+
+    const displayPlaylists = () => {
+        const playlists = playlistManager.getPlaylists();
+        const playlistsDiv = document.createElement('div');
+        playlistsDiv.className = 'playlists';
+
+        playlists.forEach(playlist => {
+            const playlistDiv = document.createElement('div');
+            playlistDiv.className = 'playlist';
+            playlistDiv.innerHTML = `
+                <h3>${playlist.name} (${playlist.genre})</h3>
+                <p>Rating: ${playlist.getAverageRating().toFixed(2)}</p>
+            `;
+
+            playlist.getAudios().forEach(audio => {
+                const audioDiv = document.createElement('div');
+                audioDiv.className = 'audio';
+                audioDiv.innerHTML = `
+                    <p>${audio.name} - Rating: ${audio.getAverageRating().toFixed(2)}</p>
+                `;
+                audioDiv.appendChild(audioPlayer.createPlayer(audio));
+                playlistDiv.appendChild(audioDiv);
+            });
+
+            playlistsDiv.appendChild(playlistDiv);
+        });
+
+        if (app) {
+            app.appendChild(playlistsDiv);
+        }
+    };
+
+    // Initial display
+    displayPlaylists();
+}
+
